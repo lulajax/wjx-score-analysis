@@ -9,7 +9,7 @@ description: Use when user mentions 成绩单, 问卷星, wjx.cn, or wants to ex
 
 ## 前提条件
 
-1. Chrome 已开启远程调试: `google-chrome --remote-debugging-port=9222`
+1. Chrome 已安装（如果远程调试未开启，脚本会自动拉起 `google-chrome --remote-debugging-port=9222`）
 2. 至少有 1 个标签页（脚本会自动检查登录状态，未登录时自动尝试登录，失败则等待人工协助）
 
 ## 使用流程
@@ -52,11 +52,13 @@ python3 /home/lujunjie/Project/wjx-score-analysis/.claude/skills/wjx-score-analy
 
 ## 输出
 
+文件名自动带上目标日期前缀：
+
 ```
 成绩单/
-  学前测成绩单-{姓名}.html   # 基于 template.html 的报告
-  全部成绩详情.json           # 完整数据
-  成绩汇总.csv                # 汇总表
+  2026-04-15-学前测成绩单-{姓名}.html   # 基于 template.html 的报告
+  2026-04-15-全部成绩详情.json           # 完整数据
+  2026-04-15-成绩汇总.csv                # 汇总表
 ```
 
 ## 模板说明

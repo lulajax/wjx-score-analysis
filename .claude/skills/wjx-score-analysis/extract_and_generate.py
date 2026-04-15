@@ -5,10 +5,10 @@
 用 template.html 模板生成专业 HTML 成绩分析报告。
 
 用法: python3 extract_and_generate.py <activity_id> [--output-dir ./成绩单]
-前提: Chrome --remote-debugging-port=9222
+如果 Chrome 未开启远程调试，脚本会自动拉起。
 """
 
-import json, asyncio, csv, math, re, os, sys, time, argparse, urllib.request
+import json, asyncio, csv, math, re, os, sys, time, argparse, urllib.request, subprocess, shutil
 sys.stdout.reconfigure(line_buffering=True)
 import websockets
 
@@ -503,23 +503,60 @@ async def main():
 
     if args.url:
         summary_url, activity_id = parse_url(args.url)
+        day_offset = -1  # URL 模式默认当日
     elif args.day:
         offset = DAY_ALIASES.get(args.day, args.day)  # 支持别名或直接传 -1/-2
         summary_url = build_day_url(args.activity, offset)
         activity_id = args.activity
+        day_offset = int(offset)
     else:
         # 默认今日
         summary_url = build_day_url(args.activity, "-1")
         activity_id = args.activity
+        day_offset = -1
+
+    # 根据日期偏移计算目标日期，用于文件名
+    from datetime import datetime, timedelta
+    target_date = (datetime.now() + timedelta(days=day_offset + 1)).strftime("%Y-%m-%d")
+
     print(f"汇总页: {summary_url}")
     print(f"Activity ID: {activity_id}")
+    print(f"目标日期: {target_date}")
 
     # 读取模板
     with open(args.template, encoding="utf-8") as f:
         template = f.read()
     print(f"模板: {args.template}")
 
-    tabs = json.loads(urllib.request.urlopen(f"http://{CDP_HOST}:{CDP_PORT}/json").read())
+    # 尝试连接 Chrome CDP，如果未启动则自动拉起
+    tabs = None
+    for attempt in range(2):
+        try:
+            tabs = json.loads(urllib.request.urlopen(f"http://{CDP_HOST}:{CDP_PORT}/json", timeout=3).read())
+            break
+        except Exception:
+            if attempt == 0:
+                print("Chrome 远程调试未就绪，正在自动启动...")
+                chrome_bin = shutil.which("google-chrome") or shutil.which("google-chrome-stable") or shutil.which("chromium-browser") or shutil.which("chromium") or "google-chrome"
+                subprocess.Popen(
+                    [chrome_bin, f"--remote-debugging-port={CDP_PORT}", "--no-first-run", "--no-default-browser-check"],
+                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+                )
+                # 等待 Chrome 启动完成
+                for i in range(15):
+                    time.sleep(1)
+                    try:
+                        tabs = json.loads(urllib.request.urlopen(f"http://{CDP_HOST}:{CDP_PORT}/json", timeout=2).read())
+                        break
+                    except Exception:
+                        pass
+                if tabs:
+                    print("Chrome 已自动启动并就绪")
+                    break
+                else:
+                    print("ERROR: 无法启动 Chrome，请手动运行: google-chrome --remote-debugging-port=9222")
+                    sys.exit(1)
+
     pts = [t for t in tabs if t.get("type")=="page"]
     if not pts: print("ERROR: 需要至少 1 个浏览器标签页"); sys.exit(1)
 
@@ -583,15 +620,15 @@ async def main():
 
             ai_text = generate_ai_analysis(majors, groups)
             html = render_html(template, p, groups, majors, ai_analysis=ai_text, exam_name=args.exam_name)
-            with open(os.path.join(args.output_dir, f"{args.exam_name}成绩单-{p['name']}.html"), "w", encoding="utf-8") as f:
+            with open(os.path.join(args.output_dir, f"{target_date}-{args.exam_name}成绩单-{p['name']}.html"), "w", encoding="utf-8") as f:
                 f.write(html)
 
         # JSON 备份
-        jp = os.path.join(args.output_dir, "全部成绩详情.json")
+        jp = os.path.join(args.output_dir, f"{target_date}-全部成绩详情.json")
         with open(jp,"w",encoding="utf-8") as f: json.dump(all_results,f,ensure_ascii=False,indent=2)
 
         # CSV 汇总
-        cp_ = os.path.join(args.output_dir, "成绩汇总.csv")
+        cp_ = os.path.join(args.output_dir, f"{target_date}-成绩汇总.csv")
         with open(cp_,"w",newline="",encoding="utf-8-sig") as f:
             w = csv.writer(f)
             w.writerow(["序号","姓名","提交时间","用时","总分"]+MAJOR_SUBJECTS)
