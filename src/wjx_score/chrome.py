@@ -1,26 +1,64 @@
 """Chrome 进程管理：启动/检测/关闭"""
 
+import os
 import shutil
 import subprocess
+import sys
 import time
 import urllib.request
 
-CHROME_CANDIDATES = [
+# Linux / macOS 候选
+_UNIX_CANDIDATES = [
     "google-chrome",
     "google-chrome-stable",
     "chromium",
     "chromium-browser",
     "/usr/bin/google-chrome",
     "/usr/bin/chromium",
+    # macOS
+    "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+]
+
+# Windows 常见安装路径
+_WIN_CANDIDATES = [
+    os.path.join(os.environ.get("PROGRAMFILES", r"C:\Program Files"),
+                 r"Google\Chrome\Application\chrome.exe"),
+    os.path.join(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)"),
+                 r"Google\Chrome\Application\chrome.exe"),
+    os.path.join(os.environ.get("LOCALAPPDATA", ""),
+                 r"Google\Chrome\Application\chrome.exe"),
 ]
 
 
 def find_chrome():
     """查找系统中可用的 Chrome/Chromium 路径"""
-    for name in CHROME_CANDIDATES:
+    # 先尝试 PATH
+    for name in ("google-chrome", "google-chrome-stable", "chromium", "chrome"):
         path = shutil.which(name)
         if path:
             return path
+
+    candidates = _WIN_CANDIDATES if sys.platform == "win32" else _UNIX_CANDIDATES
+    for p in candidates:
+        if p and os.path.isfile(p):
+            return p
+
+    # Windows: 尝试从注册表读取
+    if sys.platform == "win32":
+        try:
+            import winreg
+            for root in (winreg.HKEY_LOCAL_MACHINE, winreg.HKEY_CURRENT_USER):
+                try:
+                    key = winreg.OpenKey(root, r"SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths\chrome.exe")
+                    val, _ = winreg.QueryValueEx(key, None)
+                    winreg.CloseKey(key)
+                    if val and os.path.isfile(val):
+                        return val
+                except OSError:
+                    pass
+        except ImportError:
+            pass
+
     return None
 
 
