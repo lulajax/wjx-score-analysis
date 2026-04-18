@@ -1,0 +1,864 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>展鹏教育 - 成绩单生成工具</title>
+<style>
+:root {
+  --c-primary: #2d8cf0;
+  --c-primary-dark: #2074d4;
+  --c-primary-light: #e8f4ff;
+  --c-success: #19be6b;
+  --c-warning: #f59e0b;
+  --c-danger: #ef4444;
+  --c-text: #333;
+  --c-text-secondary: #666;
+  --c-text-muted: #999;
+  --c-border: #e8e8e8;
+  --c-bg: #f5f7fa;
+  --c-card: #ffffff;
+  --radius: 4px;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+               "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-size: 14px;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+/* 头部 */
+.header {
+  margin-bottom: 16px;
+}
+.header h1 {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--c-text);
+}
+
+/* 登录提示 */
+.login-prompt {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  padding: 40px;
+  text-align: center;
+}
+.login-prompt p {
+  margin-bottom: 16px;
+  color: var(--c-text-secondary);
+  line-height: 1.8;
+}
+.login-prompt .step {
+  display: inline-block;
+  background: var(--c-primary-light);
+  color: var(--c-primary);
+  border-radius: 50%;
+  width: 24px; height: 24px; line-height: 24px;
+  font-weight: 700; font-size: 12px;
+  margin-right: 6px;
+}
+
+/* 快捷日期标签 */
+.quick-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 12px 16px 0;
+  border-bottom: 2px solid var(--c-border);
+}
+.quick-tab {
+  padding: 8px 16px;
+  font-size: 14px;
+  color: var(--c-text-secondary);
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  transition: color 0.2s;
+  white-space: nowrap;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+}
+.quick-tab:hover { color: var(--c-primary); }
+.quick-tab.active {
+  color: var(--c-primary);
+  border-bottom-color: var(--c-primary);
+  font-weight: 500;
+}
+.quick-tab-sep {
+  width: 1px;
+  height: 14px;
+  background: var(--c-border);
+  margin: 0 4px;
+}
+
+/* 筛选面板 */
+.filter-panel {
+  padding: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.filter-panel select,
+.filter-panel input[type="text"] {
+  height: 32px;
+  border: 1px solid #dcdee2;
+  border-radius: var(--radius);
+  padding: 0 10px;
+  font-size: 13px;
+  color: var(--c-text);
+  background: #fff;
+  outline: none;
+}
+.filter-panel select { min-width: 160px; }
+.filter-panel input[type="text"] { width: 160px; }
+.filter-panel select:focus,
+.filter-panel input:focus { border-color: var(--c-primary); }
+.filter-label {
+  font-size: 13px;
+  color: var(--c-text-secondary);
+  margin-right: 4px;
+}
+.filter-sep { width: 16px; }
+
+/* 按钮 */
+.btn {
+  height: 32px;
+  padding: 0 16px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.btn-primary {
+  background: var(--c-primary);
+  color: #fff;
+  border-color: var(--c-primary);
+}
+.btn-primary:hover { background: var(--c-primary-dark); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-success {
+  background: var(--c-success);
+  color: #fff;
+  border-color: var(--c-success);
+}
+.btn-success:hover { opacity: 0.9; }
+.btn-success:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-outline {
+  background: #fff;
+  color: var(--c-text);
+  border-color: #dcdee2;
+}
+.btn-outline:hover { border-color: var(--c-primary); color: var(--c-primary); }
+
+/* 卡片 */
+.card {
+  background: var(--c-card);
+  border: 1px solid var(--c-border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+}
+
+/* 表格 — 对齐问卷星风格 */
+.table-wrap { overflow-x: auto; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+thead th {
+  background: #fafafa;
+  padding: 12px 10px;
+  text-align: center;
+  font-weight: 500;
+  color: var(--c-text-secondary);
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+tbody td {
+  padding: 12px 10px;
+  text-align: center;
+  border-bottom: 1px solid #f0f0f0;
+  color: var(--c-text);
+}
+tbody tr:hover { background: #f5f7fa; }
+tbody tr.selected { background: var(--c-primary-light); }
+th.col-check, td.col-check { width: 36px; }
+td.col-name { font-weight: 500; }
+td.col-score { font-weight: 600; color: var(--c-primary); }
+
+/* 底部工具栏 */
+.toolbar {
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid var(--c-border);
+}
+.toolbar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 13px;
+}
+.toolbar-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--c-text-muted);
+}
+
+/* 分页控件 */
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.pagination .btn-page {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  border: 1px solid #dcdee2;
+  border-radius: var(--radius);
+  background: #fff;
+  color: var(--c-text);
+  font-size: 12px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pagination .btn-page:hover:not(:disabled) {
+  border-color: var(--c-primary);
+  color: var(--c-primary);
+}
+.pagination .btn-page:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.pagination .page-info {
+  font-size: 13px;
+  color: var(--c-text-secondary);
+  padding: 0 8px;
+}
+
+/* 进度 */
+.progress-bar { padding: 12px 16px; display: none; }
+.progress-bar.active { display: block; }
+.progress-track {
+  background: #f0f0f0;
+  border-radius: 99px;
+  height: 6px;
+  overflow: hidden;
+}
+.progress-fill {
+  background: var(--c-primary);
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.3s;
+}
+.progress-text {
+  font-size: 12px;
+  color: var(--c-text-muted);
+  margin-top: 6px;
+}
+
+/* 报告列表 */
+.report-panel { padding: 12px 16px; display: none; }
+.report-panel.active { display: block; }
+.report-panel h3 {
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 10px;
+  color: var(--c-text);
+}
+.report-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.report-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: var(--c-primary-light);
+  border: 1px solid #d0dffb;
+  border-radius: var(--radius);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: none;
+  color: var(--c-primary);
+  transition: all 0.2s;
+}
+.report-item:hover {
+  background: var(--c-primary);
+  color: #fff;
+  border-color: var(--c-primary);
+}
+.report-item .score { color: var(--c-text-muted); font-size: 12px; }
+.report-item:hover .score { color: rgba(255,255,255,0.8); }
+.report-meta {
+  font-size: 12px;
+  color: var(--c-text-muted);
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  color: #fff;
+  z-index: 1000;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: all 0.3s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+.toast.show { opacity: 1; transform: translateY(0); }
+.toast.success { background: var(--c-success); }
+.toast.error { background: var(--c-danger); }
+
+/* 空/加载 */
+.empty-state {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--c-text-muted);
+}
+.loading {
+  padding: 48px 20px;
+  text-align: center;
+  color: var(--c-text-muted);
+}
+.spinner {
+  display: inline-block;
+  width: 20px; height: 20px;
+  border: 2px solid var(--c-border);
+  border-top-color: var(--c-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-bottom: 8px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* 考试名称输入 */
+.exam-name-group {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+</style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>展鹏教育 - 成绩单生成工具</h1>
+  </div>
+
+  <!-- 登录提示 -->
+  <div id="loginPrompt" class="login-prompt" style="display:none">
+    <div class="login-form">
+      <p style="font-size:15px;font-weight:500;margin-bottom:20px">登录问卷星</p>
+      <div style="max-width:320px;margin:0 auto;text-align:left">
+        <div style="margin-bottom:12px">
+          <input type="text" id="loginUser" placeholder="用户名/Email/手机"
+            style="width:100%;height:38px;border:1px solid #dcdee2;border-radius:4px;padding:0 12px;font-size:14px;outline:none">
+        </div>
+        <div style="margin-bottom:16px">
+          <input type="password" id="loginPass" placeholder="请输入登录密码"
+            style="width:100%;height:38px;border:1px solid #dcdee2;border-radius:4px;padding:0 12px;font-size:14px;outline:none">
+        </div>
+        <button class="btn btn-primary" onclick="doLogin()" id="btnLogin"
+          style="width:100%;height:38px;font-size:14px;justify-content:center">
+          登 录
+        </button>
+        <div id="loginError" style="color:var(--c-danger);font-size:13px;margin-top:10px;display:none"></div>
+      </div>
+      <div style="margin-top:20px;padding-top:16px;border-top:1px solid var(--c-border)">
+        <p style="color:var(--c-text-muted);font-size:13px;margin-bottom:8px">
+          或在 Chrome 中手动登录后点击验证
+        </p>
+        <button class="btn btn-outline" onclick="checkLogin()" id="btnCheckLogin"
+          style="height:34px;padding:0 20px;font-size:13px">
+          我已登录，开始使用
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主界面 -->
+  <div id="mainUI" style="display:none">
+    <div class="card">
+      <!-- 快捷日期标签 -->
+      <div class="quick-tabs" id="quickTabs">
+        <button class="quick-tab active" data-day="">默认</button>
+        <span class="quick-tab-sep"></span>
+        <button class="quick-tab" data-day="-1">当日</button>
+        <button class="quick-tab" data-day="-2">昨日</button>
+        <button class="quick-tab" data-day="-3">本周</button>
+        <button class="quick-tab" data-day="-5">本月</button>
+      </div>
+
+      <!-- 筛选条件 -->
+      <div class="filter-panel">
+        <span class="filter-label">您的姓名：</span>
+        <select id="filterNameOp">
+          <option value="2">包含</option>
+          <option value="0">等于</option>
+          <option value="1">不等于</option>
+          <option value="3">不包含</option>
+        </select>
+        <input type="text" id="filterName" placeholder="">
+        <button class="btn btn-primary" onclick="queryStudents()" id="btnQuery">查询</button>
+
+        <div class="exam-name-group">
+          <span class="filter-label">考试名称：</span>
+          <input type="text" id="examName" value="学前测" style="width:100px">
+        </div>
+      </div>
+
+      <!-- 数据表格 -->
+      <div id="tableContent">
+        <div class="empty-state">
+          <p>选择日期标签或设置筛选条件后点击"查询"</p>
+        </div>
+      </div>
+
+      <!-- 底部工具栏 -->
+      <div class="toolbar" id="toolbar" style="display:none">
+        <div class="toolbar-left">
+          <label style="cursor:pointer">
+            <input type="checkbox" id="checkAll" onchange="toggleAll()"> 全选
+          </label>
+          <span id="selectInfo" style="color:var(--c-text-muted)">已选 0 人</span>
+          <button class="btn btn-success" onclick="generateReports()" id="btnGenerate" disabled>
+            生成成绩单
+          </button>
+        </div>
+        <div class="toolbar-right">
+          <span id="totalInfo" style="color:var(--c-text-secondary)"></span>
+          <div class="pagination" id="pagination" style="display:none">
+            <button class="btn-page" id="btnPrev" onclick="goPrev()" disabled>&lt;</button>
+            <span class="page-info" id="pageInfo">1/1</span>
+            <button class="btn-page" id="btnNext" onclick="goNext()" disabled>&gt;</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 进度条 -->
+      <div class="progress-bar" id="progressBar">
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <div class="progress-text" id="progressText"></div>
+      </div>
+
+      <!-- 报告列表 -->
+      <div class="report-panel" id="reportPanel">
+        <h3>生成完成 — 点击姓名预览成绩单</h3>
+        <div class="report-list" id="reportList"></div>
+        <div class="report-meta" id="reportMeta"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let students = [];       // 当前页学员
+let allStudents = [];    // 跨页已加载的学员（用于生成）
+let selected = new Set();
+let config = {};
+let activeDay = '';
+let curPage = 1, totalPages = 1, totalCount = 0;
+
+// 初始化
+async function init() {
+  try {
+    const resp = await fetch('/api/config');
+    config = await resp.json();
+    document.getElementById('examName').value = config.exam_name || '学前测';
+  } catch (e) {
+    console.error('加载配置失败', e);
+  }
+
+  // 快捷标签事件
+  document.querySelectorAll('.quick-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.quick-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      activeDay = this.dataset.day;
+      queryStudents();
+    });
+  });
+
+  // 回车登录
+  document.getElementById('loginPass').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+  document.getElementById('loginUser').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('loginPass').focus();
+  });
+
+  // 检查登录状态
+  try {
+    const resp = await fetch('/api/check-login');
+    const data = await resp.json();
+    if (data.logged_in) {
+      showMain();
+    } else {
+      document.getElementById('loginPrompt').style.display = '';
+    }
+  } catch (e) {
+    document.getElementById('loginPrompt').style.display = '';
+  }
+}
+
+async function doLogin() {
+  const btn = document.getElementById('btnLogin');
+  const errEl = document.getElementById('loginError');
+  const username = document.getElementById('loginUser').value.trim();
+  const password = document.getElementById('loginPass').value;
+  if (!username || !password) {
+    errEl.textContent = '请输入用户名和密码';
+    errEl.style.display = '';
+    return;
+  }
+  btn.disabled = true;
+  btn.textContent = '登录中...';
+  errEl.style.display = 'none';
+  try {
+    const resp = await fetch('/api/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+    const data = await resp.json();
+    if (data.success) {
+      showMain();
+      showToast('登录成功', 'success');
+    } else {
+      errEl.textContent = data.error || '登录失败';
+      errEl.style.display = '';
+    }
+  } catch (e) {
+    errEl.textContent = '请求失败: ' + e.message;
+    errEl.style.display = '';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '登 录';
+  }
+}
+
+async function checkLogin() {
+  const btn = document.getElementById('btnCheckLogin');
+  btn.disabled = true;
+  btn.textContent = '验证中...';
+  try {
+    const resp = await fetch('/api/check-login');
+    const data = await resp.json();
+    if (data.logged_in) {
+      showMain();
+      showToast('登录验证成功', 'success');
+    } else {
+      showToast('未检测到登录状态，请先在 Chrome 中登录问卷星', 'error');
+    }
+  } catch (e) {
+    showToast('验证失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '我已登录，开始使用';
+  }
+}
+
+function showMain() {
+  document.getElementById('loginPrompt').style.display = 'none';
+  document.getElementById('mainUI').style.display = '';
+}
+
+async function queryStudents() {
+  const btn = document.getElementById('btnQuery');
+  btn.disabled = true;
+  btn.textContent = '查询中...';
+
+  const name = document.getElementById('filterName').value;
+  const nameOp = document.getElementById('filterNameOp').value;
+
+  const params = new URLSearchParams();
+  if (activeDay) params.set('day', activeDay);
+  if (name) {
+    params.set('name', name);
+    params.set('name_op', nameOp);
+  }
+
+  document.getElementById('tableContent').innerHTML =
+    '<div class="loading"><div class="spinner"></div><p>正在从问卷星提取数据...</p></div>';
+  document.getElementById('toolbar').style.display = 'none';
+
+  try {
+    const resp = await fetch('/api/students?' + params);
+    const data = await resp.json();
+
+    if (data.error) {
+      document.getElementById('tableContent').innerHTML =
+        `<div class="empty-state"><p>${data.error}</p></div>`;
+      return;
+    }
+
+    students = data.students || [];
+    allStudents = [...students];
+    selected.clear();
+    curPage = data.page || 1;
+    totalPages = data.total_pages || 1;
+    totalCount = data.total || 0;
+
+    if (totalCount === 0) {
+      document.getElementById('tableContent').innerHTML =
+        '<div class="empty-state"><p>该条件下没有数据</p></div>';
+      document.getElementById('toolbar').style.display = 'none';
+      return;
+    }
+
+    renderTable();
+    document.getElementById('toolbar').style.display = '';
+    updatePagination();
+    updateSelectInfo();
+  } catch (e) {
+    document.getElementById('tableContent').innerHTML =
+      `<div class="empty-state"><p>查询失败: ${e.message}</p></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '查询';
+  }
+}
+
+function updatePagination() {
+  document.getElementById('totalInfo').textContent = `共 ${totalCount} 条`;
+  const pag = document.getElementById('pagination');
+  if (totalPages > 1) {
+    pag.style.display = '';
+    document.getElementById('pageInfo').textContent = `${curPage}/${totalPages}`;
+    document.getElementById('btnPrev').disabled = curPage <= 1;
+    document.getElementById('btnNext').disabled = curPage >= totalPages;
+  } else {
+    pag.style.display = 'none';
+  }
+}
+
+async function goNext() {
+  const btn = document.getElementById('btnNext');
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/students/next');
+    const data = await resp.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    students = data.students || [];
+    // 合并到 allStudents（跨页选择用）
+    students.forEach(s => {
+      if (!allStudents.find(a => a.joinid === s.joinid)) allStudents.push(s);
+    });
+    curPage = data.page || curPage + 1;
+    totalPages = data.total_pages || totalPages;
+    totalCount = data.total || totalCount;
+    renderTable();
+    updatePagination();
+    updateSelectInfo();
+  } catch (e) {
+    showToast('翻页失败: ' + e.message, 'error');
+  }
+}
+
+async function goPrev() {
+  const btn = document.getElementById('btnPrev');
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/api/students/prev');
+    const data = await resp.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    students = data.students || [];
+    students.forEach(s => {
+      if (!allStudents.find(a => a.joinid === s.joinid)) allStudents.push(s);
+    });
+    curPage = data.page || curPage - 1;
+    totalPages = data.total_pages || totalPages;
+    totalCount = data.total || totalCount;
+    renderTable();
+    updatePagination();
+    updateSelectInfo();
+  } catch (e) {
+    showToast('翻页失败: ' + e.message, 'error');
+  }
+}
+
+function renderTable() {
+  let html = '<div class="table-wrap"><table><thead><tr>'
+    + '<th class="col-check"><input type="checkbox" id="checkAllHead" onchange="toggleAll()"></th>'
+    + '<th>序号</th>'
+    + '<th>用户ID</th>'
+    + '<th>提交答卷时间</th>'
+    + '<th>所用时间</th>'
+    + '<th>来源</th>'
+    + '<th>来自IP</th>'
+    + '<th>总分</th>'
+    + '</tr></thead><tbody>';
+
+  students.forEach(s => {
+    const checked = selected.has(s.joinid) ? 'checked' : '';
+    const cls = selected.has(s.joinid) ? ' class="selected"' : '';
+    html += `<tr${cls} onclick="toggleRow('${s.joinid}', event)">
+      <td class="col-check"><input type="checkbox" ${checked} onchange="toggleCheck('${s.joinid}')"></td>
+      <td>${s.seq}</td>
+      <td class="col-name">${s.name}</td>
+      <td>${s.submit_time}</td>
+      <td>${s.duration}</td>
+      <td>${s.source || '-'}</td>
+      <td>${s.ip_location || '-'}</td>
+      <td class="col-score">${s.total_score}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table></div>';
+  document.getElementById('tableContent').innerHTML = html;
+}
+
+function toggleRow(jid, event) {
+  if (event.target.type === 'checkbox') return;
+  toggleCheck(jid);
+}
+
+function toggleCheck(jid) {
+  if (selected.has(jid)) selected.delete(jid);
+  else selected.add(jid);
+  renderTable();
+  updateSelectInfo();
+}
+
+function toggleAll() {
+  if (selected.size === students.length) selected.clear();
+  else students.forEach(s => selected.add(s.joinid));
+  renderTable();
+  updateSelectInfo();
+}
+
+function updateSelectInfo() {
+  document.getElementById('selectInfo').textContent = `已选 ${selected.size} 人`;
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = selected.size === 0;
+  btn.textContent = selected.size > 0 ? `生成成绩单 (${selected.size})` : '生成成绩单';
+  const headCheck = document.getElementById('checkAllHead');
+  if (headCheck) {
+    headCheck.checked = students.length > 0 && selected.size === students.length;
+    headCheck.indeterminate = selected.size > 0 && selected.size < students.length;
+  }
+}
+
+async function generateReports() {
+  if (selected.size === 0) return;
+  const btn = document.getElementById('btnGenerate');
+  btn.disabled = true;
+  btn.textContent = '生成中...';
+  const progressBar = document.getElementById('progressBar');
+  progressBar.classList.add('active');
+  const examName = document.getElementById('examName').value || '学前测';
+
+  try {
+    await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        joinids: Array.from(selected),
+        exam_name: examName,
+        activity_id: config.activity_id,
+      }),
+    });
+
+    const evtSource = new EventSource('/api/progress');
+    evtSource.onmessage = function(event) {
+      const msg = JSON.parse(event.data);
+      if (msg.type === 'progress') {
+        const pct = Math.round(msg.current / msg.total * 100);
+        document.getElementById('progressFill').style.width = pct + '%';
+        document.getElementById('progressText').textContent =
+          `正在生成: ${msg.name} (${msg.current}/${msg.total})`;
+      } else if (msg.type === 'done') {
+        evtSource.close();
+        document.getElementById('progressFill').style.width = '100%';
+        document.getElementById('progressText').textContent =
+          `完成! ${msg.count} 份成绩单已生成`;
+        showToast(`${msg.count} 份成绩单生成完成`, 'success');
+        btn.disabled = false;
+        btn.textContent = `生成成绩单 (${selected.size})`;
+        setTimeout(() => { progressBar.classList.remove('active'); }, 2000);
+        showReportList(msg.reports || [], msg.output_dir);
+      } else if (msg.type === 'error') {
+        evtSource.close();
+        showToast('生成失败: ' + msg.error, 'error');
+        btn.disabled = false;
+        btn.textContent = `生成成绩单 (${selected.size})`;
+        progressBar.classList.remove('active');
+      }
+    };
+    evtSource.onerror = function() {
+      evtSource.close();
+      btn.disabled = false;
+      btn.textContent = `生成成绩单 (${selected.size})`;
+    };
+  } catch (e) {
+    showToast('请求失败: ' + e.message, 'error');
+    btn.disabled = false;
+    btn.textContent = `生成成绩单 (${selected.size})`;
+    progressBar.classList.remove('active');
+  }
+}
+
+function showReportList(reports, outputDir) {
+  const panel = document.getElementById('reportPanel');
+  const list = document.getElementById('reportList');
+  const meta = document.getElementById('reportMeta');
+
+  list.innerHTML = reports.map(r =>
+    `<a class="report-item" href="/api/report/${r.joinid}" target="_blank">
+      ${r.name} <span class="score">${r.score}分</span>
+    </a>`
+  ).join('');
+
+  meta.textContent = `共 ${reports.length} 份 · 已保存到 ${outputDir}`;
+  panel.classList.add('active');
+}
+
+function showToast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast ' + type;
+  setTimeout(() => el.classList.add('show'), 10);
+  setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+init();
+</script>
+</body>
+</html>

@@ -1,2 +1,6 @@
 成绩单/
 __pycache__/
+.env
+dist/
+*.egg-info/
+.venv/

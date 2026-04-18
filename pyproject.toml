@@ -1,0 +1,19 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "wjx-score-analysis"
+version = "0.1.0"
+description = "从问卷星提取考试成绩并生成 HTML 成绩分析报告"
+requires-python = ">=3.12"
+dependencies = [
+    "websockets>=13.0",
+    "flask>=3.0",
+]
+
+[project.scripts]
+wjx-score = "wjx_score.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/wjx_score"]

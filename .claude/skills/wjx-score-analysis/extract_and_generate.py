@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-展鹏公考 - 问卷星学前测成绩提取 & HTML 成绩单生成
+展鹏教育 - 问卷星学前测成绩提取 & HTML 成绩单生成
 通过 CDP 从 wjx.cn 提取所有学员的逐题作答数据，
 用 template.html 模板生成专业 HTML 成绩分析报告。
 
