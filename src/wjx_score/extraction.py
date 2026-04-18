@@ -177,21 +177,49 @@ async def extract_detail(ws, activity_id, joinid):
     return json.loads(r) if r else []
 
 
+_EMPTY = {"students": [], "total": 0, "page": 1, "total_pages": 1}
+
+# 无数据时页面可能显示的提示元素
+_NO_DATA_CHECK = """(function(){
+    var body = document.body ? document.body.innerText : '';
+    if (/暂无数据|没有.*数据|no.*data|无记录/.test(body)) return true;
+    var tbl = document.querySelector('%s');
+    if (tbl && tbl.rows.length <= 1) return true;
+    return false;
+})()""" % TBL
+
+
 async def load_summary_page(ws, summary_url):
     """导航到汇总页并设置每页条数，返回首页数据"""
     await cdp_send(ws, "Page.navigate", {"url": summary_url})
     await asyncio.sleep(3)
-    await wait_ready(ws, TBL)
+
+    # 等页面加载完成（不要求表格一定存在）
+    for _ in range(15):
+        try:
+            if await cdp_eval(ws, "document.readyState", 5) == "complete":
+                break
+        except Exception:
+            pass
+        await asyncio.sleep(1)
+
+    # 快速检查：表格不存在或无数据行 → 直接返回空
+    has_tbl = await cdp_eval(ws, f"document.querySelectorAll('{TBL}').length", 5)
+    if not has_tbl:
+        no_data = await cdp_eval(ws, _NO_DATA_CHECK, 5)
+        if no_data:
+            return _EMPTY
+        # 表格还没出来，再等一轮
+        if not await wait_ready(ws, TBL, 10):
+            return _EMPTY
+
+    # 检查 total，为 0 直接返回
+    info = await page_info(ws)
+    if info.get('total', '0') == '0':
+        return _EMPTY
+
     await set_page_size(ws, PAGE_SIZE)
-
-    for _ in range(10):
-        info = await page_info(ws)
-        if '/' in info.get('page', '') and info.get('total', '0') != '0':
-            return await current_page_data(ws)
-        await asyncio.sleep(2)
-        await wait_ready(ws, TBL)
-
-    return {"students": [], "total": 0, "page": 1, "total_pages": 1}
+    return await current_page_data(ws)
 
 
 async def fetch_all_students(ws, summary_url):
