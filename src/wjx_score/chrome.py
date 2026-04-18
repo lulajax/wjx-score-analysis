@@ -35,6 +35,7 @@ def is_cdp_available(host="localhost", port=9222):
 
 def launch_chrome(port=9222):
     """启动 Chrome 并启用远程调试，返回 Popen 对象"""
+    import os, tempfile
     chrome = find_chrome()
     if not chrome:
         raise RuntimeError(
@@ -42,9 +43,16 @@ def launch_chrome(port=9222):
             "或使用 --no-chrome 手动启动: google-chrome --remote-debugging-port=9222"
         )
 
+    # Chrome 已有实例运行时，必须指定独立 user-data-dir 才能启用远程调试
+    user_data_dir = os.path.join(
+        os.path.expanduser("~"), ".zhanpeng-toolbox", "chrome-profile"
+    )
+    os.makedirs(user_data_dir, exist_ok=True)
+
     cmd = [
         chrome,
         f"--remote-debugging-port={port}",
+        f"--user-data-dir={user_data_dir}",
         "--no-first-run",
         "--no-default-browser-check",
     ]

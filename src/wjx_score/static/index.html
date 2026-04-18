@@ -612,6 +612,7 @@ let curPage = 1, totalPages = 1, totalCount = 0;
 let regFields = [];
 let regParsedStudents = []; // 批量解析结果
 let regCurrentIdx = 0;      // 当前编辑的学员索引
+let scoreLoggedIn = false;  // 成绩单工具的登录状态
 
 /* ===== 导航切换 ===== */
 function switchTool(name) {
@@ -620,6 +621,7 @@ function switchTool(name) {
   document.getElementById('tool-score').style.display = name === 'score' ? '' : 'none';
   document.getElementById('tool-register').style.display = name === 'register' ? '' : 'none';
   if (name === 'register' && regFields.length === 0) loadRegFields();
+  if (name === 'score' && !scoreLoggedIn) triggerLoginCheck();
 }
 
 /* ===== 初始化 ===== */
@@ -648,10 +650,18 @@ async function init() {
     if (e.key === 'Enter') document.getElementById('loginPass').focus();
   });
 
+  // 只在成绩单 tab 检查登录，学员登记不需要登录
+  triggerLoginCheck();
+}
+
+async function triggerLoginCheck() {
   try {
+    document.getElementById('loginPrompt').style.display = '';
+    document.getElementById('mainUI').style.display = 'none';
     const resp = await fetch('/api/check-login');
     const data = await resp.json();
     if (data.logged_in) {
+      scoreLoggedIn = true;
       showMain();
     } else {
       document.getElementById('loginPrompt').style.display = '';
@@ -720,6 +730,7 @@ async function checkLogin() {
 }
 
 function showMain() {
+  scoreLoggedIn = true;
   document.getElementById('loginPrompt').style.display = 'none';
   document.getElementById('mainUI').style.display = '';
 }

@@ -30,18 +30,31 @@ else q.correct_answer='';qs.push(q);}return JSON.stringify(qs);})()"""
 
 
 async def check_logged_in(ws):
-    """检查是否已登录：访问管理页，看是否被重定向到登录页"""
+    """检查是否已登录：访问管理页，检测未登录的各种表现形式"""
     await cdp_send(ws, "Page.navigate", {"url": "https://www.wjx.cn/newwjx/manage/myquestionnaires.aspx"})
-    await asyncio.sleep(4)
-    for _ in range(10):
+    for _ in range(15):
+        await asyncio.sleep(1)
         try:
             if await cdp_eval(ws, "document.readyState", 5) == "complete":
                 break
         except Exception:
             pass
-        await asyncio.sleep(1)
-    url = await cdp_eval(ws, "window.location.href") or ""
-    return "login.aspx" not in url.lower()
+
+    url = (await cdp_eval(ws, "window.location.href") or "").lower()
+    if "login" in url:
+        return False
+
+    # wjx.cn 未登录时不重定向，而是弹 layer.alert('您还未登录')，
+    # 页面 title 变为 "系统提示"，body 内含 Login.aspx 跳转脚本
+    title = (await cdp_eval(ws, "document.title") or "").strip()
+    if title == "系统提示":
+        return False
+
+    body = await cdp_eval(ws, "document.body?document.body.innerHTML.substring(0,800):''") or ""
+    if "未登录" in body or "Login.aspx" in body:
+        return False
+
+    return True
 
 
 async def login(ws, username, password):

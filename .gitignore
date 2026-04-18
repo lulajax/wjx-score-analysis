@@ -2,5 +2,7 @@
 __pycache__/
 .env
 dist/
+build/
 *.egg-info/
 .venv/
+新学员登记表.xlsx

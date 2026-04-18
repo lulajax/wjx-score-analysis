@@ -1,11 +1,116 @@
 """CLI 入口：启动 Chrome + Flask Web 服务"""
 
 import argparse
+import atexit
+import os
 import signal
+import socket
 import sys
 import webbrowser
 
 from . import chrome, server, filters
+
+# PID 文件路径：放在用户目录下，避免权限问题
+_PID_DIR = os.path.join(os.path.expanduser("~"), ".zhanpeng-toolbox")
+_PID_FILE = os.path.join(_PID_DIR, "server.pid")
+
+
+def _is_port_in_use(port):
+    """检测端口是否被占用"""
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        try:
+            s.bind(("0.0.0.0", port))
+            return False
+        except OSError:
+            return True
+
+
+def _read_pid():
+    """读取 PID 文件，返回 (pid, port) 或 None"""
+    try:
+        with open(_PID_FILE, "r") as f:
+            parts = f.read().strip().split(",")
+            return int(parts[0]), int(parts[1]) if len(parts) > 1 else 0
+    except (FileNotFoundError, ValueError):
+        return None
+
+
+def _write_pid(port):
+    """写入当前进程 PID 和端口"""
+    os.makedirs(_PID_DIR, exist_ok=True)
+    with open(_PID_FILE, "w") as f:
+        f.write(f"{os.getpid()},{port}")
+
+
+def _remove_pid():
+    """清理 PID 文件"""
+    try:
+        os.remove(_PID_FILE)
+    except FileNotFoundError:
+        pass
+
+
+def _is_process_alive(pid):
+    """检查进程是否还在运行"""
+    if sys.platform == "win32":
+        import ctypes
+        kernel32 = ctypes.windll.kernel32
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if handle:
+            kernel32.CloseHandle(handle)
+            return True
+        return False
+    else:
+        try:
+            os.kill(pid, 0)
+            return True
+        except (ProcessLookupError, PermissionError):
+            return False
+
+
+def _kill_process(pid):
+    """终止进程"""
+    try:
+        if sys.platform == "win32":
+            import subprocess
+            subprocess.run(["taskkill", "/F", "/PID", str(pid)],
+                           stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        else:
+            os.kill(pid, signal.SIGTERM)
+        return True
+    except Exception:
+        return False
+
+
+def _cleanup_old_instance(port):
+    """清理旧实例：检查 PID 文件和端口占用"""
+    info = _read_pid()
+    if info:
+        old_pid, old_port = info
+        if _is_process_alive(old_pid):
+            print(f"检测到旧服务 (PID={old_pid}, 端口={old_port})，正在关闭...")
+            _kill_process(old_pid)
+            # 等待进程退出
+            for _ in range(30):  # 最多等 3 秒
+                if not _is_process_alive(old_pid):
+                    break
+                import time
+                time.sleep(0.1)
+            if _is_process_alive(old_pid):
+                print(f"  警告: 旧进程 {old_pid} 未能正常关闭")
+            else:
+                print("  旧服务已关闭")
+        _remove_pid()
+
+    # 再检查端口是否仍被占用（可能是非本程序的进程占用）
+    if _is_port_in_use(port):
+        print(f"错误: 端口 {port} 被其他程序占用")
+        if sys.platform != "win32":
+            print(f"  排查: lsof -i:{port}")
+        else:
+            print(f"  排查: netstat -ano | findstr :{port}")
+        print(f"  或使用其他端口: --port {port + 1}")
+        sys.exit(1)
 
 
 def main():
@@ -32,14 +137,23 @@ def main():
 
     chrome_proc = None
 
+    # 清理旧实例
+    _cleanup_old_instance(args.port)
+
+    # 写入 PID 文件 + 注册退出清理
+    _write_pid(args.port)
+    atexit.register(_remove_pid)
+
     def cleanup(signum=None, frame=None):
+        _remove_pid()
         if chrome_proc:
             print("\n正在关闭 Chrome...")
             chrome_proc.terminate()
         sys.exit(0)
 
     signal.signal(signal.SIGINT, cleanup)
-    signal.signal(signal.SIGTERM, cleanup)
+    if sys.platform != "win32":
+        signal.signal(signal.SIGTERM, cleanup)
 
     # 启动 Chrome
     if not args.no_chrome:
