@@ -10,9 +10,9 @@ from . import chrome, server, filters
 
 def main():
     ap = argparse.ArgumentParser(
-        description="展鹏教育 - 问卷星成绩单生成工具 (Web UI)",
+        description="展鹏教育工具箱 (Web UI)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="启动后在浏览器中操作：筛选、查询、选择学员、生成成绩单。",
+        epilog="启动后在浏览器中操作：成绩单生成、学员登记等。",
     )
     ap.add_argument("--port", type=int, default=8080, help="Web UI 端口 (默认: 8080)")
     ap.add_argument("--cdp-host", default="localhost", help="Chrome CDP 主机 (默认: localhost)")
@@ -26,6 +26,8 @@ def main():
                     help="不自动启动 Chrome (已有 Chrome 运行时使用)")
     ap.add_argument("--no-browser", action="store_true",
                     help="不自动打开浏览器")
+    ap.add_argument("--xlsx", default="./新学员登记表.xlsx",
+                    help="学员登记表 Excel 路径 (默认: ./新学员登记表.xlsx)")
     args = ap.parse_args()
 
     chrome_proc = None
@@ -69,6 +71,7 @@ def main():
         output_dir=args.output_dir,
         exam_name=args.exam_name,
         template_path=args.template,
+        xlsx_path=args.xlsx,
     )
 
     url = f"http://localhost:{args.port}"

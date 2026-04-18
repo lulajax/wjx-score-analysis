@@ -5,11 +5,12 @@ build-backend = "hatchling.build"
 [project]
 name = "wjx-score-analysis"
 version = "0.1.0"
-description = "从问卷星提取考试成绩并生成 HTML 成绩分析报告"
+description = "展鹏教育工具箱：成绩单生成、学员登记等"
 requires-python = ">=3.12"
 dependencies = [
     "websockets>=13.0",
     "flask>=3.0",
+    "openpyxl>=3.1",
 ]
 
 [project.scripts]

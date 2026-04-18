@@ -10,7 +10,7 @@ from pathlib import Path
 
 from flask import Flask, jsonify, request, send_from_directory, Response
 
-from . import cdp, extraction, filters, analysis, rendering
+from . import cdp, extraction, filters, analysis, rendering, register
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -30,6 +30,7 @@ _state = {
     "cached_page": "",
     "cached_total": 0,
     "reports": {},             # joinid -> {name, html} 生成的报告缓存
+    "xlsx_path": "./新学员登记表.xlsx",
 }
 
 # 生成进度队列
@@ -287,7 +288,42 @@ def get_config():
     })
 
 
-def configure(cdp_host, cdp_port, activity_id, output_dir, exam_name, template_path=None):
+@app.route("/api/register/parse", methods=["POST"])
+def parse_register():
+    """从消息文本中解析学员字段，支持多人批量"""
+    data = request.get_json()
+    text = data.get("text", "")
+    if not text.strip():
+        return jsonify({"error": "请粘贴学员信息"}), 400
+    results = register.parse_message(text)
+    if not results:
+        return jsonify({"error": "未识别到任何字段"}), 400
+    return jsonify({"students": results, "count": len(results)})
+
+
+@app.route("/api/register", methods=["POST"])
+def register_student():
+    """登记新学员"""
+    data = request.get_json()
+    if not data or not data.get("学员姓名"):
+        return jsonify({"error": "学员姓名不能为空"}), 400
+    try:
+        result = register.register(_state["xlsx_path"], data)
+        return jsonify({"success": True, **result})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/register/fields")
+def register_fields():
+    """返回登记表字段列表"""
+    return jsonify({
+        "fields": register.FIELD_ORDER,
+        "xlsx_path": os.path.abspath(_state["xlsx_path"]),
+    })
+
+
+def configure(cdp_host, cdp_port, activity_id, output_dir, exam_name, template_path=None, xlsx_path=None):
     """配置服务器参数"""
     _state["cdp_host"] = cdp_host
     _state["cdp_port"] = cdp_port
@@ -297,3 +333,5 @@ def configure(cdp_host, cdp_port, activity_id, output_dir, exam_name, template_p
     if template_path:
         with open(template_path, encoding="utf-8") as f:
             _state["template"] = f.read()
+    if xlsx_path:
+        _state["xlsx_path"] = xlsx_path
