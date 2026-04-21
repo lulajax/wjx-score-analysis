@@ -6,12 +6,12 @@
 <title>{{name}} - {{exam_name}}成绩单</title>
 <style>
   :root {
-    --c-primary: #6366f1;
-    --c-primary-dark: #4f46e5;
-    --c-primary-light: #eef2ff;
-    --c-success: #10b981;
-    --c-warning: #f59e0b;
-    --c-danger: #ef4444;
+    --c-primary: #C00000;
+    --c-primary-dark: #A00000;
+    --c-primary-light: #FDECEC;
+    --c-success: #00B050;
+    --c-warning: #ED7D31;
+    --c-danger: #C00000;
     --c-text: #1e293b;
     --c-text-secondary: #64748b;
     --c-text-muted: #94a3b8;
@@ -52,7 +52,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    background: linear-gradient(135deg, var(--c-primary-dark), #7c3aed);
+    background: linear-gradient(135deg, var(--c-primary-dark), #D93434);
     color: white;
     padding: 14px 20px;
     border-radius: var(--radius);
@@ -150,7 +150,7 @@
     white-space: nowrap;
   }
   .radar-label__name { display: block; font-size: 11px; color: #334155; }
-  .radar-label__rate { display: block; font-size: 11px; font-weight: 600; color: #6366f1; }
+  .radar-label__rate { display: block; font-size: 11px; font-weight: 600; color: #C00000; }
 
   /* 柱状图 */
   .hbar { margin-bottom: 5px; display: flex; align-items: center; gap: 6px; }
@@ -189,7 +189,7 @@
     font-size: 12px;
   }
   .detail-htable thead tr:nth-child(2) th {
-    background: #eef2ff;
+    background: var(--c-primary-light);
     color: var(--c-primary-dark);
     font-weight: 600;
     font-size: 11px;
@@ -201,9 +201,9 @@
   .ai-section {
     margin-bottom: 12px;
     padding: 14px 16px;
-    background: linear-gradient(135deg, var(--c-primary-light), #faf5ff);
+    background: linear-gradient(135deg, var(--c-primary-light), #FFF5F5);
     border-radius: var(--radius);
-    border: 1px solid #e0e7ff;
+    border: 1px solid #F5C6C6;
   }
   .ai-section__header {
     display: flex;
@@ -212,7 +212,7 @@
     margin-bottom: 10px;
   }
   .ai-section__icon { font-size: 16px; }
-  .ai-section__title { font-size: 14px; font-weight: 700; color: #4338ca; }
+  .ai-section__title { font-size: 14px; font-weight: 700; color: #A00000; }
   .ai-section__body {
     font-size: 13px;
     line-height: 1.7;
@@ -236,7 +236,7 @@
   .export-btn {
     display: inline-block;
     padding: 8px 28px;
-    background: linear-gradient(135deg, var(--c-primary-dark), #7c3aed);
+    background: linear-gradient(135deg, var(--c-primary-dark), #D93434);
     color: white;
     border: none;
     border-radius: 6px;

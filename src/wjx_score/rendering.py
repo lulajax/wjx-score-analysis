@@ -13,10 +13,10 @@ def default_template():
 
 
 def rate_color(rate):
-    if rate >= 80: return "#10b981"
-    if rate >= 60: return "#6366f1"
-    if rate >= 40: return "#f59e0b"
-    return "#ef4444"
+    if rate >= 80: return "#00B050"
+    if rate >= 60: return "#00B050"
+    if rate >= 40: return "#ED7D31"
+    return "#C00000"
 
 
 def rate_label(rate):
@@ -46,10 +46,10 @@ def build_svg_radar(majors):
         svg.append(f'<line x1="{cx}" y1="{cy}" x2="{x2:.1f}" y2="{y2:.1f}" stroke="#cbd5e1" stroke-width="0.5"/>')
     rates = [majors[s]["rate"] / 100 for s in subs]
     pts = " ".join(f"{p(ang[i], r * max(rates[i], .05))[0]:.1f},{p(ang[i], r * max(rates[i], .05))[1]:.1f}" for i in range(n))
-    svg.append(f'<polygon points="{pts}" fill="rgba(99,102,241,0.25)" stroke="#6366f1" stroke-width="2"/>')
+    svg.append(f'<polygon points="{pts}" fill="rgba(192,0,0,0.20)" stroke="#C00000" stroke-width="2"/>')
     for i in range(n):
         x, y = p(ang[i], r * max(rates[i], .05))
-        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#6366f1"/>')
+        svg.append(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="3" fill="#C00000"/>')
     svg.append('</svg>')
 
     label_dist = r + 20
@@ -130,10 +130,10 @@ def build_bar_chart(majors):
     for s in subs:
         m = majors[s]
         pct = m["rate"]
-        if pct >= 80: bg = "linear-gradient(90deg,#6366f1,#4f46e5)"
-        elif pct >= 60: bg = "linear-gradient(90deg,#818cf8,#6366f1)"
-        elif pct >= 40: bg = "linear-gradient(90deg,#a5b4fc,#818cf8)"
-        else: bg = "linear-gradient(90deg,#c7d2fe,#a5b4fc)"
+        if pct >= 80: bg = "linear-gradient(90deg,#ED7D31,#C65911)"
+        elif pct >= 60: bg = "linear-gradient(90deg,#F4A460,#ED7D31)"
+        elif pct >= 40: bg = "linear-gradient(90deg,#F8C291,#F4A460)"
+        else: bg = "linear-gradient(90deg,#FADDC4,#F8C291)"
         pct_label = f'<span class="hbar__pct">{pct}%</span>' if pct >= 25 else ''
         bars.append(f'''<div class="hbar">
   <span class="hbar__label">{s}</span>
