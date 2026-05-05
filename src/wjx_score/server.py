@@ -31,6 +31,7 @@ _state = {
     "cached_total": 0,
     "reports": {},             # joinid -> {name, html} 生成的报告缓存
     "xlsx_path": "./新学员登记表.xlsx",
+    "field_config_path": "./field_config.json",
 }
 
 # 生成进度队列
@@ -323,7 +324,26 @@ def register_fields():
     })
 
 
-def configure(cdp_host, cdp_port, activity_id, output_dir, exam_name, template_path=None, xlsx_path=None):
+@app.route("/api/register/field-config", methods=["GET"])
+def get_field_config():
+    """返回完整字段配置"""
+    return jsonify(register.get_field_config())
+
+
+@app.route("/api/register/field-config", methods=["PUT"])
+def update_field_config():
+    """更新字段配置并持久化到 JSON 文件"""
+    cfg = request.get_json()
+    if not isinstance(cfg, list):
+        return jsonify({"error": "配置必须是数组"}), 400
+    try:
+        register.save_field_config(_state["field_config_path"], cfg)
+        return jsonify({"success": True, "count": len(cfg)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+def configure(cdp_host, cdp_port, activity_id, output_dir, exam_name, template_path=None, xlsx_path=None, field_config_path=None):
     """配置服务器参数"""
     _state["cdp_host"] = cdp_host
     _state["cdp_port"] = cdp_port
@@ -335,3 +355,6 @@ def configure(cdp_host, cdp_port, activity_id, output_dir, exam_name, template_p
             _state["template"] = f.read()
     if xlsx_path:
         _state["xlsx_path"] = xlsx_path
+    if field_config_path:
+        _state["field_config_path"] = field_config_path
+    register.load_field_config(_state["field_config_path"])

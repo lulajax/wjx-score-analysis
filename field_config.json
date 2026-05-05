@@ -1,0 +1,140 @@
+[
+  {
+    "key": "协议是否签署",
+    "excel_header": "协议是否签署",
+    "aliases": ["协议", "签署协议", "是否签署协议", "合同"],
+    "is_date": false
+  },
+  {
+    "key": "学员姓名",
+    "excel_header": "学员姓名",
+    "aliases": ["姓名", "名字", "名称"],
+    "is_date": false
+  },
+  {
+    "key": "性别",
+    "excel_header": "性别",
+    "aliases": [],
+    "is_date": false
+  },
+  {
+    "key": "年龄",
+    "excel_header": "年龄",
+    "aliases": [],
+    "is_date": false
+  },
+  {
+    "key": "专业",
+    "excel_header": "专业",
+    "aliases": [],
+    "is_date": false
+  },
+  {
+    "key": "学历和学位",
+    "excel_header": "学历和学位",
+    "aliases": ["学历", "学位", "学历学位", "最高学历"],
+    "is_date": false
+  },
+  {
+    "key": "学校",
+    "excel_header": "学校",
+    "aliases": ["毕业院校", "院校", "大学"],
+    "is_date": false
+  },
+  {
+    "key": "从事何种行业",
+    "excel_header": "从事何种行业",
+    "aliases": ["行业", "职业", "工作", "从事行业", "目前职业", "从事工作"],
+    "is_date": false
+  },
+  {
+    "key": "备考地区",
+    "excel_header": "备考地区",
+    "aliases": ["考试地区", "地区", "所考省份", "报考省份"],
+    "is_date": false
+  },
+  {
+    "key": "目标考试",
+    "excel_header": "目标考试",
+    "aliases": ["考试", "目标"],
+    "is_date": false
+  },
+  {
+    "key": "报考年份",
+    "excel_header": "报考年份",
+    "aliases": [],
+    "is_date": false
+  },
+  {
+    "key": "参考经历",
+    "excel_header": "参考经历（0基础/备考几月）",
+    "aliases": ["参考经历（0基础/备考几月）", "参考经历(0基础/备考几月)", "参考经历（0基础）", "考试经历", "备考经历", "基础"],
+    "is_date": false
+  },
+  {
+    "key": "每日学习时长",
+    "excel_header": "每日学习时长",
+    "aliases": ["学习时长", "学习时间", "每天学习时长", "每天学习时间"],
+    "is_date": false
+  },
+  {
+    "key": "政治面貌",
+    "excel_header": "政治面貌",
+    "aliases": [],
+    "is_date": false
+  },
+  {
+    "key": "毕业时间",
+    "excel_header": "毕业时间",
+    "aliases": ["毕业日期"],
+    "is_date": true
+  },
+  {
+    "key": "邮寄地址",
+    "excel_header": "邮寄地址",
+    "aliases": ["地址", "收件地址", "快递地址", "收货地址"],
+    "is_date": false
+  },
+  {
+    "key": "电话",
+    "excel_header": "电话",
+    "aliases": ["手机", "手机号", "手机号码", "联系电话", "联系方式", "电话号码", "tel"],
+    "is_date": false
+  },
+  {
+    "key": "报名课程产品名称",
+    "excel_header": "报名课程产品名称（全名称）",
+    "aliases": ["报名课程产品名称（全名称）", "报名课程产品名称(全名称)", "课程名称", "课程产品", "课程", "报名课程", "产品名称"],
+    "is_date": false
+  },
+  {
+    "key": "班型",
+    "excel_header": "班型",
+    "aliases": [],
+    "is_date": false
+  },
+  {
+    "key": "实付金额",
+    "excel_header": "实付金额",
+    "aliases": ["金额", "付款金额", "缴费金额", "费用", "学费"],
+    "is_date": false
+  },
+  {
+    "key": "业绩归属",
+    "excel_header": "业绩归属",
+    "aliases": ["业绩", "归属"],
+    "is_date": false
+  },
+  {
+    "key": "报班时间",
+    "excel_header": "报班时间",
+    "aliases": ["报班日期", "报名时间", "报名日期", "入学时间"],
+    "is_date": true
+  },
+  {
+    "key": "学员特殊情况备注",
+    "excel_header": "备注",
+    "aliases": ["备注", "特殊情况备注", "特殊情况", "特殊备注"],
+    "is_date": false
+  }
+]

@@ -1,141 +1,47 @@
 """新学员登记：从消息文本中识别学员字段，追加到 Excel 登记表"""
 
+import json
 import os
 import re
 from datetime import datetime
 
 import openpyxl
 
-# 用户字段 → Excel 表头 的映射
-FIELD_MAP = {
-    "协议是否签署":       "协议是否签署",
-    "学员姓名":           "学员姓名",
-    "性别":               "性别",
-    "年龄":               "年龄",
-    "专业":               "专业",
-    "学历和学位":         "学历和学位",
-    "学校":               "学校",
-    "从事何种行业":       "从事何种行业",
-    "备考地区":           "备考地区",
-    "目标考试":           "目标考试",
-    "报考年份":           "报考年份",
-    "参考经历":           "参考经历（0基础/备考几月）",
-    "每日学习时长":       "每日学习时长",
-    "政治面貌":           "政治面貌",
-    "毕业时间":           "毕业时间",
-    "邮寄地址":           "邮寄地址",
-    "电话":               "电话",
-    "报名课程产品名称":   "报名课程产品名称（全名称）",
-    "实付金额":           "实付金额",
-    "业绩归属":           "业绩归属",
-    "报班时间":           "报班时间",
-    "学员特殊情况备注":   "备注",
-}
+# --- 默认字段配置（field_config.json 不存在时使用） ---
+_DEFAULT_CONFIG = [
+    {"key": "协议是否签署", "excel_header": "协议是否签署", "aliases": ["协议", "签署协议", "是否签署协议", "合同"], "is_date": False},
+    {"key": "学员姓名", "excel_header": "学员姓名", "aliases": ["姓名", "名字", "名称"], "is_date": False},
+    {"key": "性别", "excel_header": "性别", "aliases": [], "is_date": False},
+    {"key": "年龄", "excel_header": "年龄", "aliases": [], "is_date": False},
+    {"key": "专业", "excel_header": "专业", "aliases": [], "is_date": False},
+    {"key": "学历和学位", "excel_header": "学历和学位", "aliases": ["学历", "学位", "学历学位", "最高学历"], "is_date": False},
+    {"key": "学校", "excel_header": "学校", "aliases": ["毕业院校", "院校", "大学"], "is_date": False},
+    {"key": "从事何种行业", "excel_header": "从事何种行业", "aliases": ["行业", "职业", "工作", "从事行业", "目前职业", "从事工作"], "is_date": False},
+    {"key": "备考地区", "excel_header": "备考地区", "aliases": ["考试地区", "地区", "所考省份", "报考省份"], "is_date": False},
+    {"key": "目标考试", "excel_header": "目标考试", "aliases": ["考试", "目标"], "is_date": False},
+    {"key": "报考年份", "excel_header": "报考年份", "aliases": [], "is_date": False},
+    {"key": "参考经历", "excel_header": "参考经历（0基础/备考几月）", "aliases": ["参考经历（0基础/备考几月）", "参考经历(0基础/备考几月)", "参考经历（0基础）", "考试经历", "备考经历", "基础"], "is_date": False},
+    {"key": "每日学习时长", "excel_header": "每日学习时长", "aliases": ["学习时长", "学习时间", "每天学习时长", "每天学习时间"], "is_date": False},
+    {"key": "政治面貌", "excel_header": "政治面貌", "aliases": [], "is_date": False},
+    {"key": "毕业时间", "excel_header": "毕业时间", "aliases": ["毕业日期"], "is_date": True},
+    {"key": "邮寄地址", "excel_header": "邮寄地址", "aliases": ["地址", "收件地址", "快递地址", "收货地址"], "is_date": False},
+    {"key": "电话", "excel_header": "电话", "aliases": ["手机", "手机号", "手机号码", "联系电话", "联系方式", "电话号码", "tel"], "is_date": False},
+    {"key": "报名课程产品名称", "excel_header": "报名课程产品名称（全名称）", "aliases": ["报名课程产品名称（全名称）", "报名课程产品名称(全名称)", "课程名称", "课程产品", "课程", "报名课程", "产品名称"], "is_date": False},
+    {"key": "班型", "excel_header": "班型", "aliases": [], "is_date": False},
+    {"key": "实付金额", "excel_header": "实付金额", "aliases": ["金额", "付款金额", "缴费金额", "费用", "学费"], "is_date": False},
+    {"key": "业绩归属", "excel_header": "业绩归属", "aliases": ["业绩", "归属"], "is_date": False},
+    {"key": "报班时间", "excel_header": "报班时间", "aliases": ["报班日期", "报名时间", "报名日期", "入学时间"], "is_date": True},
+    {"key": "学员特殊情况备注", "excel_header": "备注", "aliases": ["备注", "特殊情况备注", "特殊情况", "特殊备注"], "is_date": False},
+]
 
-# 字段显示顺序
-FIELD_ORDER = list(FIELD_MAP.keys())
-
-# 消息文本中可能出现的关键词 → 标准字段名
-_FIELD_ALIASES = {}
-for key in FIELD_MAP:
-    _FIELD_ALIASES[key] = key
-
-# --- 完整表头（含括号）---
-_FIELD_ALIASES["参考经历（0基础/备考几月）"] = "参考经历"
-_FIELD_ALIASES["参考经历(0基础/备考几月)"] = "参考经历"
-_FIELD_ALIASES["参考经历（0基础）"] = "参考经历"
-_FIELD_ALIASES["报名课程产品名称（全名称）"] = "报名课程产品名称"
-_FIELD_ALIASES["报名课程产品名称(全名称)"] = "报名课程产品名称"
-
-# --- 姓名 ---
-_FIELD_ALIASES["姓名"] = "学员姓名"
-_FIELD_ALIASES["名字"] = "学员姓名"
-_FIELD_ALIASES["名称"] = "学员姓名"
-
-# --- 电话 ---
-_FIELD_ALIASES["手机"] = "电话"
-_FIELD_ALIASES["手机号"] = "电话"
-_FIELD_ALIASES["手机号码"] = "电话"
-_FIELD_ALIASES["联系电话"] = "电话"
-_FIELD_ALIASES["联系方式"] = "电话"
-_FIELD_ALIASES["电话号码"] = "电话"
-_FIELD_ALIASES["tel"] = "电话"
-
-# --- 学历 ---
-_FIELD_ALIASES["学历"] = "学历和学位"
-_FIELD_ALIASES["学位"] = "学历和学位"
-_FIELD_ALIASES["学历学位"] = "学历和学位"
-_FIELD_ALIASES["最高学历"] = "学历和学位"
-
-# --- 行业 ---
-_FIELD_ALIASES["行业"] = "从事何种行业"
-_FIELD_ALIASES["职业"] = "从事何种行业"
-_FIELD_ALIASES["工作"] = "从事何种行业"
-_FIELD_ALIASES["从事行业"] = "从事何种行业"
-_FIELD_ALIASES["目前职业"] = "从事何种行业"
-_FIELD_ALIASES["从事工作"] = "从事何种行业"
-
-# --- 课程 ---
-_FIELD_ALIASES["课程名称"] = "报名课程产品名称"
-_FIELD_ALIASES["课程产品"] = "报名课程产品名称"
-_FIELD_ALIASES["课程"] = "报名课程产品名称"
-_FIELD_ALIASES["报名课程"] = "报名课程产品名称"
-_FIELD_ALIASES["产品名称"] = "报名课程产品名称"
-
-# --- 金额 ---
-_FIELD_ALIASES["金额"] = "实付金额"
-_FIELD_ALIASES["付款金额"] = "实付金额"
-_FIELD_ALIASES["缴费金额"] = "实付金额"
-_FIELD_ALIASES["费用"] = "实付金额"
-_FIELD_ALIASES["学费"] = "实付金额"
-
-# --- 地址 ---
-_FIELD_ALIASES["地址"] = "邮寄地址"
-_FIELD_ALIASES["收件地址"] = "邮寄地址"
-_FIELD_ALIASES["快递地址"] = "邮寄地址"
-_FIELD_ALIASES["收货地址"] = "邮寄地址"
-
-# --- 协议 ---
-_FIELD_ALIASES["协议"] = "协议是否签署"
-_FIELD_ALIASES["签署协议"] = "协议是否签署"
-_FIELD_ALIASES["是否签署协议"] = "协议是否签署"
-_FIELD_ALIASES["合同"] = "协议是否签署"
-
-# --- 备注 ---
-_FIELD_ALIASES["备注"] = "学员特殊情况备注"
-_FIELD_ALIASES["特殊情况备注"] = "学员特殊情况备注"
-_FIELD_ALIASES["特殊情况"] = "学员特殊情况备注"
-_FIELD_ALIASES["特殊备注"] = "学员特殊情况备注"
-
-# --- 其他 ---
-_FIELD_ALIASES["毕业院校"] = "学校"
-_FIELD_ALIASES["院校"] = "学校"
-_FIELD_ALIASES["大学"] = "学校"
-_FIELD_ALIASES["学习时长"] = "每日学习时长"
-_FIELD_ALIASES["学习时间"] = "每日学习时长"
-_FIELD_ALIASES["每天学习时长"] = "每日学习时长"
-_FIELD_ALIASES["每天学习时间"] = "每日学习时长"
-_FIELD_ALIASES["考试地区"] = "备考地区"
-_FIELD_ALIASES["地区"] = "备考地区"
-_FIELD_ALIASES["考试"] = "目标考试"
-_FIELD_ALIASES["目标"] = "目标考试"
-_FIELD_ALIASES["考试经历"] = "参考经历"
-_FIELD_ALIASES["备考经历"] = "参考经历"
-_FIELD_ALIASES["基础"] = "参考经历"
-_FIELD_ALIASES["业绩"] = "业绩归属"
-_FIELD_ALIASES["归属"] = "业绩归属"
-_FIELD_ALIASES["报班日期"] = "报班时间"
-_FIELD_ALIASES["报名时间"] = "报班时间"
-_FIELD_ALIASES["报名日期"] = "报班时间"
-_FIELD_ALIASES["毕业日期"] = "毕业时间"
-
-# 按长度降序排列，优先匹配长关键词
-_SORTED_ALIASES = sorted(_FIELD_ALIASES.keys(), key=len, reverse=True)
+# --- 运行时状态 ---
+_config = list(_DEFAULT_CONFIG)
+_config_path = None
 
 # 行首编号/标点前缀：1. 或 18: 或 18： 或 ① 或 - 或 · 等
 _LINE_PREFIX_RE = re.compile(r"^\s*(?:\d{1,2}\s*[.．、:：)\]）】]\s*|[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]\s*|[-·•]\s+)")
 
-# 噪音行模式：聊天语气、打招呼等（跳过）
+# 噪音行模式
 _NOISE_RE = re.compile(
     r"^(老师|你好|您好|嗨|hi|hello|麻烦|请|谢谢|感谢|辛苦|好的|收到|以下是|信息如下|学员信息|新学员|报名信息)",
     re.IGNORECASE,
@@ -144,22 +50,86 @@ _NOISE_RE = re.compile(
 # 值的模式识别正则
 _PHONE_RE = re.compile(r"^1[3-9]\d{9}$")
 _MONEY_RE = re.compile(r"^\d{3,6}(?:\.\d{1,2})?(?:元)?$")
-_DATE_FULL_RE = re.compile(r"^\d{4}年\d{1,2}月\d{1,2}日$")
 _GENDER_RE = re.compile(r"^[男女]$")
 _AGE_RE = re.compile(r"^\d{1,2}岁?$")
+
+# 运行时查找结构（由 _reload_runtime() 填充）
+FIELD_MAP = {}
+_FIELD_ALIASES = {}
+DATE_FIELDS = set()
+FIELD_ORDER = []
+_SORTED_ALIASES = []
+
+
+def _build_runtime(cfg):
+    """从配置列表构建运行时查找结构"""
+    field_map = {}
+    aliases = {}
+    date_fields = set()
+    field_order = []
+    for item in cfg:
+        key = item["key"]
+        excel_header = item.get("excel_header", key)
+        field_map[key] = excel_header
+        field_order.append(key)
+        aliases[key] = key  # key 本身也是别名
+        for alias in item.get("aliases", []):
+            if alias:
+                aliases[alias] = key
+        if item.get("is_date", False):
+            date_fields.add(key)
+    return field_map, aliases, date_fields, field_order
+
+
+def _reload_runtime():
+    global FIELD_MAP, _FIELD_ALIASES, DATE_FIELDS, FIELD_ORDER, _SORTED_ALIASES
+    FIELD_MAP, _FIELD_ALIASES, DATE_FIELDS, FIELD_ORDER = _build_runtime(_config)
+    _SORTED_ALIASES = sorted(_FIELD_ALIASES.keys(), key=len, reverse=True)
+
+
+# 初始构建（使用默认配置）
+_reload_runtime()
+
+
+def load_field_config(path):
+    """从 JSON 文件加载字段配置，文件不存在时写出默认配置"""
+    global _config, _config_path
+    _config_path = path
+    if os.path.exists(path):
+        with open(path, encoding="utf-8") as f:
+            _config = json.load(f)
+    else:
+        save_field_config(path, _DEFAULT_CONFIG)
+        _config = list(_DEFAULT_CONFIG)
+    _reload_runtime()
+
+
+def save_field_config(path, cfg):
+    """将字段配置写入 JSON 文件，并更新运行时状态"""
+    global _config, _config_path
+    os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(cfg, f, ensure_ascii=False, indent=2)
+    _config = list(cfg)
+    _config_path = path
+    _reload_runtime()
+
+
+def get_field_config():
+    """返回当前字段配置列表（副本）"""
+    return list(_config)
 
 
 def _parse_one(lines):
     """从一组行中解析一个学员的字段"""
     result = {}
-    unmatched = []  # 未匹配的行，留给模式识别
+    unmatched = []
 
     for line in lines:
         line = line.strip()
         if not line:
             continue
 
-        # 跳过噪音行
         plain = _LINE_PREFIX_RE.sub("", line)
         if _NOISE_RE.match(plain):
             continue
@@ -175,15 +145,12 @@ def _parse_one(lines):
                 break
 
         if matched_field:
-            # 去掉字段名后的分隔符（：: = - 空格）
             rest = re.sub(r"^[\s:：=\-]+", "", rest).strip()
             result[matched_field] = rest
         else:
             unmatched.append(line)
 
-    # 对未匹配的行做值模式识别
     for line in unmatched:
-        # 可能是纯值（没有字段名），尝试按内容猜字段
         val = re.sub(r"^[\s:：=\-]+", "", line).strip()
         if not val:
             continue
@@ -203,7 +170,6 @@ def parse_message(text):
     """从消息文本中解析学员字段。支持多人批量粘贴，返回列表 [{字段名: 值}, ...]"""
     lines = text.strip().splitlines()
 
-    # 检测是否包含多人：寻找"学员姓名"出现的行位置
     name_positions = []
     for i, line in enumerate(lines):
         stripped = _LINE_PREFIX_RE.sub("", line.strip())
@@ -213,18 +179,14 @@ def parse_message(text):
                 break
 
     if len(name_positions) <= 1:
-        # 单人
         result = _parse_one(lines)
         return [result] if result else []
 
-    # 多人：按"学员姓名"行分割
     groups = []
     for idx, pos in enumerate(name_positions):
         end = name_positions[idx + 1] if idx + 1 < len(name_positions) else len(lines)
-        # 往前找属于当前人的行（从上一个人结束到当前姓名行）
         start = name_positions[idx - 1] if idx > 0 else 0
         if idx > 0:
-            # 在 start..pos 之间找分界：编号重新从1开始、或空行
             block_start = pos
             for j in range(name_positions[idx - 1] + 1, pos):
                 stripped = lines[j].strip()
@@ -244,8 +206,6 @@ def parse_message(text):
         if parsed:
             results.append(parsed)
     return results
-
-DATE_FIELDS = {"报班时间", "毕业时间"}
 
 
 def _parse_date(text):
@@ -281,7 +241,6 @@ def register(xlsx_path, data):
     if not os.path.exists(xlsx_path):
         wb = openpyxl.Workbook()
         ws = wb.active
-        # 按 FIELD_MAP 的 value 创建表头
         for i, header in enumerate(FIELD_MAP.values(), 1):
             ws.cell(1, i, header)
         wb.save(xlsx_path)

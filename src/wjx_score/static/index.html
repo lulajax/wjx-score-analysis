@@ -440,6 +440,80 @@ td.col-score { font-weight: 600; color: var(--c-primary); }
   color: #1a7a4a;
   display: none;
 }
+
+/* === 字段配置面板 === */
+.field-config-panel {
+  padding: 16px 20px;
+}
+.field-config-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--c-text-secondary);
+  user-select: none;
+  padding: 4px 0;
+}
+.field-config-toggle:hover { color: var(--c-primary); }
+.field-config-toggle .arrow {
+  display: inline-block;
+  transition: transform 0.2s;
+  font-size: 10px;
+}
+.field-config-toggle.open .arrow { transform: rotate(90deg); }
+.field-config-body { display: none; margin-top: 14px; }
+.field-config-body.open { display: block; }
+.field-config-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.field-config-table th {
+  background: #fafafa;
+  padding: 8px 10px;
+  text-align: left;
+  font-weight: 500;
+  color: var(--c-text-secondary);
+  border-bottom: 1px solid var(--c-border);
+  white-space: nowrap;
+}
+.field-config-table td {
+  padding: 6px 6px;
+  border-bottom: 1px solid var(--c-border);
+  vertical-align: middle;
+}
+.field-config-table input[type="text"] {
+  width: 100%;
+  border: 1px solid #dcdee2;
+  border-radius: var(--radius);
+  padding: 4px 8px;
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--c-text);
+  background: #fff;
+  outline: none;
+  min-width: 60px;
+}
+.field-config-table input[type="text"]:focus { border-color: var(--c-primary); }
+.field-config-table input[type="checkbox"] { cursor: pointer; }
+.field-config-table .drag-handle {
+  cursor: grab;
+  color: var(--c-text-muted);
+  padding: 0 4px;
+  font-size: 16px;
+  line-height: 1;
+}
+.field-config-table .drag-handle:active { cursor: grabbing; }
+.field-config-table tr.dragging { opacity: 0.4; }
+.field-config-table tr.drag-over td { border-top: 2px solid var(--c-primary); }
+.field-config-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
 </style>
 </head>
 <body>
@@ -559,6 +633,38 @@ td.col-score { font-weight: 600; color: var(--c-primary); }
 
   <!-- ==================== 学员登记工具 ==================== -->
   <div id="tool-register" style="display:none">
+    <!-- 字段配置面板 -->
+    <div class="card" id="fieldConfigCard">
+      <div class="field-config-panel">
+        <div class="field-config-toggle" id="fieldConfigToggle" onclick="toggleFieldConfig()">
+          <span class="arrow">▶</span>
+          <span>字段配置</span>
+          <span style="font-size:12px;color:var(--c-text-muted);margin-left:4px">— 管理识别字段、别名和 Excel 列标题</span>
+        </div>
+        <div class="field-config-body" id="fieldConfigBody">
+          <table class="field-config-table" id="fieldConfigTable">
+            <thead>
+              <tr>
+                <th style="width:24px"></th>
+                <th>字段名</th>
+                <th>Excel 列标题</th>
+                <th>别名（逗号分隔，用于识别消息文本）</th>
+                <th style="width:50px;text-align:center">日期</th>
+                <th style="width:36px"></th>
+              </tr>
+            </thead>
+            <tbody id="fieldConfigBody2"></tbody>
+          </table>
+          <div class="field-config-actions">
+            <button class="btn btn-outline" onclick="addFieldRow()"
+              style="height:32px;padding:0 14px;font-size:13px">+ 新增字段</button>
+            <button class="btn btn-primary" onclick="saveFieldConfig()" id="btnSaveFields"
+              style="height:32px;padding:0 20px;font-size:13px">保存配置</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 步骤1：粘贴消息 -->
     <div class="card" id="regStep1">
       <div class="reg-form">
@@ -1139,6 +1245,130 @@ function showToast(msg, type) {
   el.className = 'toast ' + type;
   setTimeout(() => el.classList.add('show'), 10);
   setTimeout(() => el.classList.remove('show'), 3000);
+}
+
+/* ===== 字段配置面板 ===== */
+let fieldConfigData = []; // [{key, excel_header, aliases:[], is_date}]
+
+function toggleFieldConfig() {
+  const toggle = document.getElementById('fieldConfigToggle');
+  const body = document.getElementById('fieldConfigBody');
+  const isOpen = toggle.classList.toggle('open');
+  body.classList.toggle('open', isOpen);
+  if (isOpen && fieldConfigData.length === 0) loadFieldConfig();
+}
+
+async function loadFieldConfig() {
+  try {
+    const resp = await fetch('/api/register/field-config');
+    fieldConfigData = await resp.json();
+    renderFieldConfigTable();
+  } catch (e) {
+    showToast('加载字段配置失败: ' + e.message, 'error');
+  }
+}
+
+function renderFieldConfigTable() {
+  const tbody = document.getElementById('fieldConfigBody2');
+  tbody.innerHTML = fieldConfigData.map((f, i) => `
+    <tr draggable="true" data-idx="${i}"
+        ondragstart="fcDragStart(event,${i})"
+        ondragover="fcDragOver(event,${i})"
+        ondrop="fcDrop(event,${i})"
+        ondragleave="fcDragLeave(event)">
+      <td><span class="drag-handle" title="拖拽排序">⠿</span></td>
+      <td><input type="text" value="${esc(f.key)}" data-fi="${i}" data-col="key" oninput="fcUpdate(this)"></td>
+      <td><input type="text" value="${esc(f.excel_header)}" data-fi="${i}" data-col="excel_header" oninput="fcUpdate(this)"></td>
+      <td><input type="text" value="${esc((f.aliases||[]).join(', '))}" data-fi="${i}" data-col="aliases" oninput="fcUpdate(this)" style="min-width:200px"></td>
+      <td style="text-align:center"><input type="checkbox" ${f.is_date ? 'checked' : ''} data-fi="${i}" data-col="is_date" onchange="fcUpdate(this)"></td>
+      <td><button onclick="removeFieldRow(${i})" style="background:none;border:none;cursor:pointer;color:var(--c-danger);font-size:16px;padding:0 4px" title="删除">×</button></td>
+    </tr>`).join('');
+}
+
+function esc(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+}
+
+function fcUpdate(el) {
+  const i = +el.dataset.fi;
+  const col = el.dataset.col;
+  if (col === 'aliases') {
+    fieldConfigData[i].aliases = el.value.split(',').map(s => s.trim()).filter(Boolean);
+  } else if (col === 'is_date') {
+    fieldConfigData[i].is_date = el.checked;
+  } else {
+    fieldConfigData[i][col] = el.value.trim();
+  }
+}
+
+function addFieldRow() {
+  fieldConfigData.push({ key: '', excel_header: '', aliases: [], is_date: false });
+  renderFieldConfigTable();
+  // 聚焦到新行的 key 输入框
+  const rows = document.querySelectorAll('#fieldConfigBody2 tr');
+  const lastRow = rows[rows.length - 1];
+  if (lastRow) lastRow.querySelector('input').focus();
+}
+
+function removeFieldRow(i) {
+  fieldConfigData.splice(i, 1);
+  renderFieldConfigTable();
+}
+
+async function saveFieldConfig() {
+  // 先从 DOM 同步一次所有值（以防最后一次 oninput 未触发）
+  document.querySelectorAll('#fieldConfigBody2 input[data-col]').forEach(fcUpdate);
+
+  const invalid = fieldConfigData.filter(f => !f.key.trim());
+  if (invalid.length) { showToast('字段名不能为空', 'error'); return; }
+
+  const btn = document.getElementById('btnSaveFields');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+  try {
+    const resp = await fetch('/api/register/field-config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(fieldConfigData),
+    });
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error);
+    showToast(`字段配置已保存（共 ${data.count} 个字段）`, 'success');
+    // 刷新 regFields 供表单渲染使用
+    await loadRegFields();
+  } catch (e) {
+    showToast('保存失败: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '保存配置';
+  }
+}
+
+/* 拖拽排序 */
+let _fcDragIdx = null;
+function fcDragStart(e, i) {
+  _fcDragIdx = i;
+  e.currentTarget.classList.add('dragging');
+  e.dataTransfer.effectAllowed = 'move';
+}
+function fcDragOver(e, i) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('#fieldConfigBody2 tr').forEach((r, idx) => {
+    r.classList.toggle('drag-over', idx === i && idx !== _fcDragIdx);
+  });
+}
+function fcDragLeave(e) {
+  e.currentTarget.classList.remove('drag-over');
+}
+function fcDrop(e, targetIdx) {
+  e.preventDefault();
+  document.querySelectorAll('#fieldConfigBody2 tr').forEach(r => r.classList.remove('drag-over', 'dragging'));
+  if (_fcDragIdx === null || _fcDragIdx === targetIdx) return;
+  const moved = fieldConfigData.splice(_fcDragIdx, 1)[0];
+  fieldConfigData.splice(targetIdx, 0, moved);
+  _fcDragIdx = null;
+  renderFieldConfigTable();
 }
 
 init();
